@@ -76,6 +76,13 @@ int main(void) {
     Shader crtShader = LoadShader(NULL, "resources/shaders/shader.frag");
     RenderTexture2D target = LoadRenderTexture(screen.width, screen.height);
 
+    const int uResolution = GetShaderLocation(crtShader, "uResolution");
+    const float resolution[2] = { (float)screen.width, (float)screen.height };
+
+    const float baseCurvature = 4.0f;
+    const int uCurvature = GetShaderLocation(crtShader, "uCurvature");
+    float curvature[2] = { baseCurvature, baseCurvature };
+
     SetTargetFPS(60);
     SetRandomSeed(time(NULL));
 
@@ -176,6 +183,9 @@ int main(void) {
         }
 
         // Draw ----------------------------------------------------------------
+        SetShaderValue(crtShader, uResolution, resolution, SHADER_UNIFORM_VEC2);
+        SetShaderValue(crtShader, uCurvature, curvature, SHADER_UNIFORM_VEC2);
+
         BeginTextureMode(target);
             // Background
             ClearBackground(BLACK);

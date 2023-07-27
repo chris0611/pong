@@ -1,6 +1,7 @@
 #include <raylib.h>
 #include <raymath.h>
 #include <stdio.h>
+#include <time.h>
 
 typedef struct IntPair {
     int width;
@@ -67,9 +68,16 @@ int main(void) {
     const int scoreFontSize = 50;
     const Vector2 origin = { screen.width/2.f, screen.height/2.f };
 
+    // Initialization
+    SetConfigFlags(FLAG_MSAA_4X_HINT | FLAG_VSYNC_HINT);
     InitWindow(screen.width, screen.height, "Pong");
-    SetWindowState(FLAG_WINDOW_UNDECORATED | FLAG_VSYNC_HINT);
+    SetWindowState(FLAG_WINDOW_UNDECORATED);
+
+    Shader crtShader = LoadShader(NULL, "resources/shaders/shader.frag");
+    RenderTexture2D target = LoadRenderTexture(screen.width, screen.height);
+
     SetTargetFPS(60);
+    SetRandomSeed(time(NULL));
 
     const float paddleSpeed = 10.f;
     const Vector2 paddleSize = { 10.f, 60.f };
@@ -96,13 +104,11 @@ int main(void) {
     };
 
     const float initBallSpeed = 5.f;
-
     Ball ball = { initBallRec, RandomStartAngle(initBallSpeed) };
 
     bool paused = false;
     unsigned int rightScore = 0;
     unsigned int leftScore = 0;
-
     unsigned long frameCounter = 0;
 
     // Main game loop
@@ -164,14 +170,13 @@ int main(void) {
             ball.rec.y = newBallPos.y;
             frameCounter++;
             if (frameCounter % 60 == 0) {
+                // Gradually increase difficulty by increasing speed by 1% every second
                 ball.velocity = Vector2Scale(ball.velocity, 1.01f);
-                printf("New velocity: %f\n", Vector2Length(ball.velocity));
             }
         }
 
         // Draw ----------------------------------------------------------------
-
-        BeginDrawing();
+        BeginTextureMode(target);
             // Background
             ClearBackground(BLACK);
             DrawMiddleBarrier(screen);
@@ -195,14 +200,38 @@ int main(void) {
 
             if (paused) {
                 const int fontSize = 40;
-                int width = MeasureText("PAUSE", fontSize);
-                DrawRectangle(screen.width/2-width/2-5, screen.height/2-fontSize/2-5, width+10, fontSize+10, BLACK);
-                DrawText("PAUSE", screen.width/2-width/2, screen.height/2-fontSize/2, fontSize, RAYWHITE);
-            }
+                const int width = MeasureText("PAUSE", fontSize);
+                const unsigned char intensity =
+                    floorf(Remap((sin(GetTime()*2.f)+1.f)*0.5f, 0.f, 1.f, 0.f, 245.f));
 
+                Color recColor = BLACK;
+                recColor.a = intensity;
+                DrawRectangle(screen.width/2-width/2-5, screen.height/2-fontSize/2-5, width+10, fontSize+10, recColor);
+
+                Color textColor = (Color){ intensity, intensity, intensity, 255 };
+                DrawText("PAUSE", screen.width/2-width/2, screen.height/2-fontSize/2, fontSize, textColor);
+            }
+        EndTextureMode();
+
+        BeginDrawing();
+            ClearBackground(BLACK);
+
+            BeginShaderMode(crtShader);
+                DrawTextureRec(
+                    target.texture,
+                    (Rectangle){
+                        0, 0,
+                        (float)target.texture.width,
+                        (float)-target.texture.height
+                    },
+                    (Vector2){ 0, 0 },
+                    WHITE
+                );
+            EndShaderMode();
         EndDrawing();
     }
 
+    UnloadShader(crtShader);
     CloseWindow();
 
     return 0;
